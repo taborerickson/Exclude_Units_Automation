@@ -1,6 +1,4 @@
 pandas 
 numpy
-pathlib 
-datetime 
-sys
-traceback 
+openpyxl
+pyside6
