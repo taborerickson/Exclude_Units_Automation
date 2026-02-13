@@ -23,6 +23,8 @@ def save_uploaded_file(file_path):
     if not src.exists(): 
         raise FileNotFoundError(f"Source file not found: {src}") 
     
+    # Makins sure DATA_DIR exists 
+    DATA_DIR.mkdir(parents=True, exist_ok=True) 
     destination = DATA_DIR / src.name 
     
     if destination.exists(): 
@@ -35,17 +37,46 @@ def save_uploaded_file(file_path):
 
     return destination 
 
-def cleanup_temp_file(): 
-    """   
-    Removing files from DATA_DIR and OUTPUT_DIR 
-    Only removing files (not directories) 
-    Does not remove logs/
+# Updating cleanup functions 
+def _clear_directory_contents(directory: Path): 
+    """  
+    Deletes all files and folders inside 'directory', but not the directory itself
+    (skips logs folder) 
     """
-    for folder in [DATA_DIR, OUTPUT_DIR]: 
-        for file in folder.iterdir(): 
-            try: 
-                if file.is_file(): 
-                    file.unlink() 
-                    logger.debug(f"Removed temporary files: {file}") 
-            except Exception as e: 
-                logger.exception(f"Failed to removed {file}: {e}")  
+    if not directory.exists(): 
+        return 
+    for entry in directory.iterdir(): 
+        try: 
+            if entry.is_file() or entry.is_symlink(): 
+                entry.unlink()
+            elif entry.is_dir(): 
+                shutil.rmtree(entry) 
+            logger.debug("Removed: %s", entry) 
+        except Exception as e: 
+            logger.exception("Failed to remove %s: %s", entry, e)
+
+def cleanup_temp_file(): 
+    """  
+    Removes all files and folders from DATA_DIR and OUTPUT_DIR (not LOG_DIR) 
+    """
+    try: 
+        _clear_directory_contents(DATA_DIR) 
+        _clear_directory_contents(OUTPUT_DIR) 
+        logger.info("Temporary data/output cleaned up.") 
+    except Exception as e: 
+        logger.exception("cleanup_temp_file failed: %s", e) 
+
+# def cleanup_temp_file(): 
+#     """   
+#     Removing files from DATA_DIR and OUTPUT_DIR 
+#     Only removing files (not directories) 
+#     Does not remove logs/
+#     """
+#     for folder in [DATA_DIR, OUTPUT_DIR]: 
+#         for file in folder.iterdir(): 
+#             try: 
+#                 if file.is_file(): 
+#                     file.unlink() 
+#                     logger.debug(f"Removed temporary files: {file}") 
+#             except Exception as e: 
+#                 logger.exception(f"Failed to removed {file}: {e}") 
