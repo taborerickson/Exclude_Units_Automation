@@ -101,7 +101,7 @@ def process_report(input_file: Path, output_path: Path = None):
     # If nothing found, writing empty CSV with headers 
     if flagged_count == 0: 
         data.head(0).to_csv(output_path, index=False) 
-        msg = "No properties met exclusion criteria."
+        msg = "No properties met unit exclusion criteria."
         logger.info(msg + f" Wrote empty CSV to: {output_path.name}") 
         preview = "No rows flagged." 
         return {
