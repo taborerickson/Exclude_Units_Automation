@@ -141,8 +141,85 @@ class MainWindow(QMainWindow):
 
         container = QWidget() 
         container.setLayout(main_layout) 
-        container.setStyleSheet("background-color:#2B2B2B;")
-        self.setCentralWidget(container) 
+
+        # Updating to force UI colors so theme differences don't affect readability when opened
+        container.setObjectName("centralWidget") 
+        # Adding explicit colors for widgets to the central stylesheet
+        container.setStyleSheet("""
+            /* Root background */
+            QWidget#centralWidget {
+                background-color: #2B2B2B;   /* charcoal */
+            }
+
+            /* Generic labels: white text */
+            QLabel {
+                color: #FFFFFF;
+            }
+
+            /* Instruction label: slightly larger */
+            QLabel[instruction="true"] {
+                font-size: 14pt;
+                font-weight: bold;
+                color: #FFFFFF;
+            }
+
+            /* Status label: slightly lighter */
+            QLabel[status="true"] {
+                font-size: 10pt;
+                color: #DDDDDD;
+            }
+
+            /* Next-steps label: light blue */
+            QLabel[nextsteps="true"] {
+                font-size: 11pt;
+                color: #4FC3F7;
+            }
+
+            /* Browse button - big, bold, high contrast */
+            QPushButton#browseButton {
+                background-color: #1976D2;
+                color: #FFFFFF;
+                font-weight: bold;
+                font-size: 12pt;
+                padding: 10px 18px;
+                border-radius: 6px;
+                min-width: 120px;
+                min-height: 42px;
+            }
+
+            /* Browse button hover/pressed */
+            QPushButton#browseButton:hover {
+                background-color: #3393FF;
+            }
+            QPushButton#browseButton:pressed {
+                background-color: #145A9C;
+            }
+
+            /* Table view dark theme */
+            QTableView {
+                background-color: #333638;
+                color: #FFFFFF;
+                gridline-color: #555555;
+            }
+            QHeaderView::section {
+                background-color: #424347;
+                color: #FFFFFF;
+                padding: 4px;
+                border: 1px solid #555555;
+            }
+            """)
+
+        # Applying the attributes that are used by the selectors 
+        self.instruction_label.setProperty("instruction", True) 
+        self.status_label.setProperty("status", True) 
+        self.next_steps_label.setProperty("nextsteps", True) 
+        # Setting object name for browse button
+        self.browse_button.setObjectName("browseButton") 
+        self.browse_button.setMinimumHeight(42) 
+        self.browse_button.setMinimumWidth(130) 
+        self.setCentralWidget(container)    
+        # container.setStyleSheet("background-color:#2B2B2B;")
+        # self.setCentralWidget(container) 
 
         # Cracking processing state 
         self._is_processing = False 
@@ -194,7 +271,7 @@ class MainWindow(QMainWindow):
     # Browsing action 
     def on_browse(self): 
         if self._is_processing: 
-            self._show_user_message("Processing alreday in progress.") 
+            self._show_user_message("Processing already in progress.") 
             return 
         windows_filter = "Excel files (*.xlsx *.xlsm *.xls)" 
         fname, _ = QFileDialog.getOpenFileName(self, "Select report", str(Path.home()), windows_filter) 
