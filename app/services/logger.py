@@ -5,7 +5,7 @@ Added handling to prevent duplicate handlers
 """
 import logging 
 from logging.handlers import RotatingFileHandler 
-from app.config import LOG_DIR 
+from app.config import LOG_DIR, info_paths 
 from app import __version__ 
 from datetime import datetime 
 
@@ -51,6 +51,7 @@ def setup_logger():
     logging.getLogger("pandas").setLevel(logging.WARNING) 
 
     # logging logger initialization with current version 
-    logger.info(f"Logger initialized | Version: {__version__}")
+    # Adding info_paths() to logger to find where logs are
+    logger.info(f"Logger initialized | Version: {__version__} | Application paths: %s", info_paths())
 
     return logger 
