@@ -30,6 +30,11 @@ from app import __version__
 import pandas as pd 
 import traceback 
 
+from PySide6.QtWidgets import QDialog, QTextBrowser, QPushButton 
+import markdown 
+import webbrowser
+import sys  
+
 logger = setup_logger() 
 
 # Worker / Signals 
@@ -111,6 +116,14 @@ class MainWindow(QMainWindow):
         self.browse_button = QPushButton("Browse...") 
         self.browse_button.clicked.connect(self.on_browse)
     
+        # Adding help button next to Browse button 
+        self.help_button = QPushButton("Help") 
+        self.help_button.setObjectName("helpButton") 
+        self.help_button.setMinimumHeight(42) 
+        self.help_button.clicked.connect(self._show_readme_dialog) 
+        # Setting the style for the help button (global container may already style it) 
+        self.help_button.setStyleSheet("background-color:#4B4B4B; color:#FFFFFF; font-weight:bold; padding:8px; border-radius:6px;")
+
         # Table view (DataFrame preview) 
         self.table_view = QTableView() 
         self.table_model = PandasModel(pd.DataFrame()) 
@@ -132,6 +145,8 @@ class MainWindow(QMainWindow):
         # Adding the left stacked area and browse button to the top_layout
         top_layout.addLayout(left_col_layout, stretch=1) 
         top_layout.addWidget(self.browse_button, stretch=0) 
+        # Adding help button next to the browse button 
+        top_layout.addWidget(self.help_button, stretch=0)
         # top_layout.addWidget(self.status_label) 
         # top_layout.addWidget(self.browse_button)
 
@@ -141,8 +156,85 @@ class MainWindow(QMainWindow):
 
         container = QWidget() 
         container.setLayout(main_layout) 
-        container.setStyleSheet("background-color:#2B2B2B;")
-        self.setCentralWidget(container) 
+
+        # Updating to force UI colors so theme differences don't affect readability when opened
+        container.setObjectName("centralWidget") 
+        # Adding explicit colors for widgets to the central stylesheet
+        container.setStyleSheet("""
+            /* Root background */
+            QWidget#centralWidget {
+                background-color: #2B2B2B;   /* charcoal */
+            }
+
+            /* Generic labels: white text */
+            QLabel {
+                color: #FFFFFF;
+            }
+
+            /* Instruction label: slightly larger */
+            QLabel[instruction="true"] {
+                font-size: 14pt;
+                font-weight: bold;
+                color: #FFFFFF;
+            }
+
+            /* Status label: slightly lighter */
+            QLabel[status="true"] {
+                font-size: 10pt;
+                color: #DDDDDD;
+            }
+
+            /* Next-steps label: light blue */
+            QLabel[nextsteps="true"] {
+                font-size: 11pt;
+                color: #4FC3F7;
+            }
+
+            /* Browse button - big, bold, high contrast */
+            QPushButton#browseButton {
+                background-color: #1976D2;
+                color: #FFFFFF;
+                font-weight: bold;
+                font-size: 12pt;
+                padding: 10px 18px;
+                border-radius: 6px;
+                min-width: 120px;
+                min-height: 42px;
+            }
+
+            /* Browse button hover/pressed */
+            QPushButton#browseButton:hover {
+                background-color: #3393FF;
+            }
+            QPushButton#browseButton:pressed {
+                background-color: #145A9C;
+            }
+
+            /* Table view dark theme */
+            QTableView {
+                background-color: #333638;
+                color: #FFFFFF;
+                gridline-color: #555555;
+            }
+            QHeaderView::section {
+                background-color: #424347;
+                color: #FFFFFF;
+                padding: 4px;
+                border: 1px solid #555555;
+            }
+            """)
+
+        # Applying the attributes that are used by the selectors 
+        self.instruction_label.setProperty("instruction", True) 
+        self.status_label.setProperty("status", True) 
+        self.next_steps_label.setProperty("nextsteps", True) 
+        # Setting object name for browse button
+        self.browse_button.setObjectName("browseButton") 
+        self.browse_button.setMinimumHeight(42) 
+        self.browse_button.setMinimumWidth(130) 
+        self.setCentralWidget(container)    
+        # container.setStyleSheet("background-color:#2B2B2B;")
+        # self.setCentralWidget(container) 
 
         # Cracking processing state 
         self._is_processing = False 
@@ -194,7 +286,7 @@ class MainWindow(QMainWindow):
     # Browsing action 
     def on_browse(self): 
         if self._is_processing: 
-            self._show_user_message("Processing alreday in progress.") 
+            self._show_user_message("Processing already in progress.") 
             return 
         windows_filter = "Excel files (*.xlsx *.xlsm *.xls)" 
         fname, _ = QFileDialog.getOpenFileName(self, "Select report", str(Path.home()), windows_filter) 
@@ -316,6 +408,87 @@ class MainWindow(QMainWindow):
         self._show_user_message(error_message()) 
         self.table_view.setModel(PandasModel(pd.DataFrame({"Error": ["Processing failed. Error has been logged."]})))
         # Full error details logged to log files for troubleshooting 
+
+    # Adding method to show README.md file within the UI 
+    def _show_readme_dialog(self): 
+        """  
+        Displays README.md inside a modal dialog
+        Handles both dev mode and PyInstaller-frozen mode 
+        """
+        # Locating the README.md file depending on dev vs frozen mode 
+        # if running frozen -- data files are extracted to sys._MEIPASS 
+        try: 
+            if getattr(sys, "frozen", False): 
+                # Running in a PyInstaller bundle 
+                base_path = Path(sys._MEIPASS)
+            else: 
+                # Running in a normal mode: 
+                base_path = Path(__file__).resolve().parents[2] 
+        except Exception: 
+            base_path = Path(__file__).resolve().parents[2] 
+
+        md_path = base_path / "README.md" 
+        html_path = base_path / "README.html" # fallback for if a HTML is produced 
+
+        # If the README.md is not bundled, falling back to README.html in the same folder 
+        if not md_path.exists(): 
+            if html_path.exists(): 
+                webbrowser.open(str(html_path)) 
+                return 
+            self._show_user_message("README not found.") 
+            return 
+        
+        # Reading markdown and converting to HTML 
+        try: 
+            md_text = md_path.read_text(encoding="utf-8") 
+            # Converting to HTML with markdown package 
+            html_body = markdown.markdown(md_text, extensions=["tables", "fenced_code", "codehilite"]) 
+        except Exception as e: 
+            # Attempting to open raw file 
+            logger.exceptioN("Failed converting README.md to HTML") 
+            webbrowser.open(str(md_path)) 
+            return 
+        
+        # Wrapping HTML with min styls to match the dark UI and provide readability 
+        html_doc = f"""<!doctype html> 
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+            body {{ font-family: Arial, Helvetica, sans-serif; margin: 18px; color: #ffffff; background: #2B2B2B; }}
+            h1,h2,h3 {{ color: #FFFFFF; }}
+            pre {{ background: #111; color: #fff; padding: 8px; border-radius: 4px; overflow:auto; }}
+            code {{ background: rgba(255,255,255,0.04); padding:2px 4px; border-radius:4px; }}
+            a {{ color: #4FC3F7; }}
+            table {{ border-collapse: collapse; width: auto; }}
+            th, td {{ border: 1px solid #555; padding: 6px 8px; }}
+            </style>
+            </head>
+            <body>
+            {html_body}
+            </body>
+            </html>
+            """
+        
+        # Creating and showing modal dialog 
+        dlg = QDialog(self) 
+        dlg.setWindowTitle("Help / README") 
+        dlg.setMinimumSize(800, 600) 
+        layout = QVBoxLayout(dlg) 
+        viewer = QTextBrowser() 
+        viewer.setHtml(html_doc) 
+        # Allowing links in the README to open externally in the user's browser (default browser) 
+        viewer.setOpenExternalLinks(True) 
+        layout.addWidget(viewer) 
+        # Adding a close button 
+        btn_close = QPushButton("Close") 
+        btn_close.setFixedHeight(36) 
+        btn_close.clicked.connect(dlg.accept) 
+        layout.addWidget(btn_close) 
+
+        dlg.exec() 
+        
+
 
 
 # OLD: 

@@ -2,3 +2,4 @@ pandas
 numpy
 openpyxl
 pyside6
+markdown 
