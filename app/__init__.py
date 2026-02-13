@@ -9,4 +9,4 @@ Defines metadata for the application including the current version.
 # MINOR: New features (backwards compatible) 
 # PATCH: Bug fixes only 
 
-__version__ = "1.2.0" 
+__version__ = "1.3.1" 
